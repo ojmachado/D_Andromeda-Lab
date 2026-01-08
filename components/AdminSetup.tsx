@@ -278,7 +278,7 @@ export default function AdminSetup() {
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-[#3b3267] bg-surface-light dark:bg-surface-dark p-6">
                 <p className="text-slate-500 dark:text-[#9b92c9] text-sm mb-6">
-                    No painel do Meta, vá em <b>Facebook Login &gt; Settings</b> e adicione:
+                    No painel do Meta, vá em <b>Facebook Login {' > '} Settings</b> e adicione:
                 </p>
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-2">
