@@ -4,8 +4,15 @@ import { encrypt } from '../../_lib/crypto';
 
 export default async function handler(req: any, res: any) {
   try {
+    // Debug Logs (Aparecem no Vercel Logs)
+    console.log('[DEBUG] Checking Env Vars...');
+    const hasSecret = !!process.env.SESSION_SECRET;
+    const hasRedis = !!process.env.d_andromeda_labandromeda_lab_REDIS_URL;
+    console.log(`[DEBUG] SESSION_SECRET: ${hasSecret}, REDIS_URL_VAR: ${hasRedis}`);
+
     // Pré-verificação de sanidade do ambiente
-    if (!process.env.SESSION_SECRET || !process.env.d_andromeda_labandromeda_lab_REDIS_URL) {
+    if (!hasSecret || !hasRedis) {
+      console.error('[ERROR] Missing Environment Variables');
       return sendError(res, 500, 'server_configuration_error', 'Faltam variáveis de ambiente (SESSION_SECRET ou d_andromeda_labandromeda_lab_REDIS_URL) no painel da Vercel.');
     }
 

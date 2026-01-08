@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { Buffer } from 'buffer';
+// Buffer é global no Node.js. Não importar de 'buffer' evita erro "Module not found" em serverless.
 
 const ALGORITHM = 'aes-256-gcm';
 
