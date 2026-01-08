@@ -26,13 +26,16 @@ export default function AdminSetup() {
     // Load existing config
     getToken().then(token => {
         fetch('/api/admin/meta/config', { headers: { Authorization: `Bearer ${token}` } })
-            .then(res => res.json())
-            .then(data => {
-                if(data.appId) {
-                    setAppId(data.appId);
-                    setConnectionStatus('connected'); // Assume connected if ID exists, user can re-test
+            .then(async res => {
+                if (res.ok) {
+                    const data = await res.json();
+                    if(data.appId) {
+                        setAppId(data.appId);
+                        setConnectionStatus('connected'); // Assume connected if ID exists, user can re-test
+                    }
                 }
-            });
+            })
+            .catch(e => console.warn('Failed to load config:', e));
     });
   }, []);
 
@@ -67,18 +70,30 @@ export default function AdminSetup() {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await res.json();
+
+        // Robust response handling
+        const contentType = res.headers.get('content-type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+            data = await res.json();
+        } else {
+            // If API returns HTML (e.g. 404, 500 Vercel error), handle gracefully
+            const text = await res.text();
+            throw new Error(`Server returned ${res.status}: ${text.slice(0, 100).replace(/\n/g, ' ')}...`);
+        }
         
         if (res.ok) {
             setConnectionStatus('connected');
             setStatusMessage(data.message);
         } else {
             setConnectionStatus('error');
-            setStatusMessage(data.message || 'Validation failed');
+            setStatusMessage(data.message || data.error || 'Validation failed');
         }
-    } catch (e) {
+    } catch (e: any) {
         setConnectionStatus('error');
-        setStatusMessage('Network error during test');
+        // Show detailed error to help troubleshooting
+        setStatusMessage(e.message || 'Network error during test');
     } finally {
         setTesting(false);
     }
@@ -110,7 +125,7 @@ export default function AdminSetup() {
                 <span className="material-symbols-outlined text-red-600 dark:text-red-500 mt-0.5">error</span>
                 <div>
                     <h3 className="text-sm font-bold text-red-900 dark:text-red-400">Connection Failed</h3>
-                    <p className="text-sm text-red-700 dark:text-red-500/80 mt-1">{statusMessage}</p>
+                    <p className="text-sm text-red-700 dark:text-red-500/80 mt-1 font-mono">{statusMessage}</p>
                 </div>
             </div>
         )}
