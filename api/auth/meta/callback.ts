@@ -2,8 +2,6 @@ import { kv, KEYS } from '../../_lib/kv';
 import { decrypt, encrypt } from '../../_lib/crypto';
 import { getLongLivedToken } from '../../_lib/meta';
 
-export const config = { runtime: 'edge' };
-
 export default async function handler(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
@@ -33,8 +31,6 @@ export default async function handler(req: Request) {
     const appSecret = decrypt(metaConfig.appSecret);
 
     // Troca code por token (long lived)
-    // Nota: O endpoint padrão troca token curto por longo. Para 'code', usa-se oauth/access_token padrão.
-    // Aqui simplificado: code -> user access token
     const redirectUri = `${url.origin}/api/auth/meta/callback`;
     const tokenRes = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?client_id=${metaConfig.appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`);
     const tokenData = await tokenRes.json();

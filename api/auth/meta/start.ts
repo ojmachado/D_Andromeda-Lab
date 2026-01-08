@@ -3,8 +3,6 @@ import { getUser, errorResponse } from '../../_lib/auth';
 import { decrypt } from '../../_lib/crypto';
 import crypto from 'crypto';
 
-export const config = { runtime: 'edge' };
-
 export default async function handler(req: Request) {
   const user = await getUser(req);
   if (!user) return errorResponse(401, 'unauthorized', 'Login requerido');

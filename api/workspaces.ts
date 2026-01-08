@@ -3,8 +3,6 @@ import { getUser, errorResponse } from './_lib/auth';
 import { Workspace } from '../shared/types';
 import crypto from 'crypto';
 
-export const config = { runtime: 'edge' };
-
 export default async function handler(req: Request) {
   const user = await getUser(req);
   if (!user) return errorResponse(401, 'unauthorized', 'Usuário não autenticado');

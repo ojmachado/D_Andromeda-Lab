@@ -1,8 +1,9 @@
-import React, { PropsWithChildren } from 'react';
+import React from 'react';
 import { UserButton } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 
-interface LayoutProps extends PropsWithChildren {
+interface LayoutProps {
+  children: React.ReactNode;
   title: string;
   showSwitcher?: boolean;
 }

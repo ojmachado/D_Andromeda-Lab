@@ -3,8 +3,6 @@ import { getUser, errorResponse } from '../../_lib/auth';
 import { encrypt } from '../../_lib/crypto';
 import { MetaConfig } from '../../../shared/types';
 
-export const config = { runtime: 'edge' }; // Usando edge runtime, crypto precisa ser Web Standard ou polyfill, mas aqui estamos usando crypto do node via 'api/_lib'. Em Vercel Edge functions, 'crypto' é nativo.
-
 export default async function handler(req: Request) {
   const user = await getUser(req);
   if (!user) return errorResponse(401, 'unauthorized', 'Login requerido');
@@ -12,9 +10,13 @@ export default async function handler(req: Request) {
 
   if (req.method === 'GET') {
     const config = await kv.get<any>(KEYS.META_CONFIG);
+    const origin = new URL(req.url).origin;
+    // Fallback para localhost se origin for null (casos raros em serverless)
+    const baseUrl = origin && origin !== 'null' ? origin : 'https://seu-app.vercel.app';
+    
     const response: Partial<MetaConfig> = {
       appId: config?.appId || '',
-      redirectUri: `${new URL(req.url).origin}/api/auth/meta/callback`
+      redirectUri: `${baseUrl}/api/auth/meta/callback`
     };
     return new Response(JSON.stringify(response), { headers: { 'Content-Type': 'application/json' } });
   }

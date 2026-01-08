@@ -9,16 +9,16 @@ SaaS Multi-tenant para Meta Ads.
 2. Crie uma aplicação.
 3. Copie `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (ou `VITE_CLERK_PUBLISHABLE_KEY`) e `CLERK_SECRET_KEY`.
 
-### 2. Vercel KV (Redis)
-1. Crie um banco KV no painel da Vercel.
-2. Copie `KV_REST_API_URL` e `KV_REST_API_TOKEN`.
+### 2. Redis (Persistência)
+1. Crie um banco Redis (pode ser Upstash, Redis Cloud, ou Vercel KV usando connection string padrão).
+2. Obtenha a Connection String (ex: `redis://default:senha@url-do-host:6379`).
+3. Defina a variável de ambiente `REDIS_URL`.
 
 ### 3. Variáveis de Ambiente (.env.local)
 ```bash
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
-KV_REST_API_URL=...
-KV_REST_API_TOKEN=...
+REDIS_URL=redis://default:senha@...
 SESSION_SECRET=uma_string_aleatoria_muito_longa_para_criptografia_AES_256
 ```
 
@@ -33,10 +33,10 @@ SESSION_SECRET=uma_string_aleatoria_muito_longa_para_criptografia_AES_256
 ## Deploy
 1. Conecte o repositório à Vercel.
 2. Adicione as Environment Variables.
-3. O Vercel detectará `vite.config.ts` e `api/` functions automaticamente.
+3. Certifique-se de instalar `ioredis` (`npm install ioredis`).
 
 ## Troubleshooting
 
+- **Redis Connection Error:** Verifique se `REDIS_URL` está correta e se o banco permite conexões externas.
 - **Redirect Mismatch:** Certifique-se que a URL gerada no backend (`/api/auth/meta/start`) corresponde EXATAMENTE à cadastrada no Meta.
-- **Vite Proxy:** Localmente, chamadas `/api` são proxied para o serverless mock ou você deve rodar `vercel dev`.
 - **Crypto Error:** Se ocorrer erro de criptografia, verifique se `SESSION_SECRET` tem tamanho suficiente (32 chars+).
