@@ -27,6 +27,7 @@ export default function WorkspacesList() {
     try {
       const token = await getToken();
       const res = await fetch('/api/workspaces', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Falha ao carregar workspaces');
       const data = await res.json();
       setWorkspaces(data);
     } catch (e) {
@@ -46,10 +47,21 @@ export default function WorkspacesList() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName })
       });
-      const ws = await res.json();
-      navigate(`/w/${ws.id}/setup`);
-    } catch (e) {
-      alert('Erro ao criar workspace');
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Erro desconhecido ao criar workspace');
+      }
+      
+      if (!data.id) {
+        throw new Error('Resposta inválida do servidor: ID do workspace ausente');
+      }
+
+      navigate(`/w/${data.id}/setup`);
+    } catch (e: any) {
+      console.error('Create error:', e);
+      alert(`Erro: ${e.message}`);
     } finally {
       setCreating(false);
     }
