@@ -1,35 +1,52 @@
 import Redis from 'ioredis';
 
-// Conecta ao Redis usando a URL do .env
-const redisUrl = process.env.d_andromeda_labandromeda_lab_REDIS_URL;
-
-// Em ambiente Serverless (Vercel), não devemos tentar conectar em localhost se a ENV faltar.
-// Isso causa Connection Refused e quebra a função com Erro 500.
+// Variável singleton lazy
 let redis: Redis | null = null;
 
-if (redisUrl) {
-  redis = new Redis(redisUrl, {
-    lazyConnect: true, // Importante para serverless
-    maxRetriesPerRequest: 1,
-    retryStrategy: (times) => {
-      if (times > 3) return null; // Desiste rápido
-      return Math.min(times * 50, 2000);
-    }
-  });
+// Função segura para obter instância do Redis
+const getRedis = () => {
+  if (redis) return redis;
 
-  redis.on('error', (err) => {
-    // Apenas loga, não derruba o processo
-    console.warn('Redis Connection Warning:', err.message);
-  });
-} else {
-  console.warn('WARNING: d_andromeda_labandromeda_lab_REDIS_URL missing. Database operations will fail safely.');
-}
+  // Tenta buscar a variável em múltiplos nomes para robustez
+  const url = process.env.d_andromeda_labandromeda_lab_REDIS_URL || 
+              process.env.REDIS_URL || 
+              process.env.KV_URL;
+
+  if (!url) {
+    console.warn('WARN: Redis URL not found in environment variables.');
+    return null;
+  }
+
+  try {
+    // Inicializa cliente
+    const client = new Redis(url, {
+      lazyConnect: true, // Não conecta imediatamente
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => {
+        if (times > 3) return null;
+        return Math.min(times * 50, 2000);
+      }
+    });
+
+    // Handler de erro silencioso para não derrubar o processo
+    client.on('error', (err) => {
+      console.warn('Redis Client Error:', err.message);
+    });
+
+    redis = client;
+    return redis;
+  } catch (e: any) {
+    console.error('CRITICAL: Failed to initialize Redis client:', e.message);
+    return null;
+  }
+};
 
 export const kv = {
   get: async <T>(key: string): Promise<T | null> => {
-    if (!redis) return null;
+    const r = getRedis();
+    if (!r) return null;
     try {
-      const val = await redis.get(key);
+      const val = await r.get(key);
       if (!val) return null;
       try {
         return JSON.parse(val) as T;
@@ -43,35 +60,38 @@ export const kv = {
   },
 
   set: async (key: string, value: any, opts?: { ex?: number }) => {
-    if (!redis) throw new Error('Database not configured (Missing d_andromeda_labandromeda_lab_REDIS_URL)');
+    const r = getRedis();
+    if (!r) throw new Error('Database configuration missing (REDIS_URL)');
     try {
       const stringValue = JSON.stringify(value);
       if (opts?.ex) {
-        await redis.set(key, stringValue, 'EX', opts.ex);
+        await r.set(key, stringValue, 'EX', opts.ex);
       } else {
-        await redis.set(key, stringValue);
+        await r.set(key, stringValue);
       }
     } catch (e) {
       console.error('KV SET Error:', e);
-      throw new Error('Database connection failed');
+      throw new Error('Database write failed');
     }
   },
 
   lpush: async (key: string, ...elements: any[]) => {
-    if (!redis) throw new Error('Database not configured (Missing d_andromeda_labandromeda_lab_REDIS_URL)');
+    const r = getRedis();
+    if (!r) throw new Error('Database configuration missing (REDIS_URL)');
     try {
       const args = elements.map(e => (typeof e === 'object' ? JSON.stringify(e) : String(e)));
-      return await redis.lpush(key, ...args);
+      return await r.lpush(key, ...args);
     } catch (e) {
       console.error('KV LPUSH Error:', e);
-      throw new Error('Database connection failed');
+      throw new Error('Database write failed');
     }
   },
 
   lrange: async (key: string, start: number, end: number) => {
-    if (!redis) return [];
+    const r = getRedis();
+    if (!r) return [];
     try {
-      return await redis.lrange(key, start, end);
+      return await r.lrange(key, start, end);
     } catch (e) {
       console.error('KV LRANGE Error:', e);
       return [];
@@ -79,9 +99,10 @@ export const kv = {
   },
 
   del: async (key: string) => {
-    if (!redis) return 0;
+    const r = getRedis();
+    if (!r) return 0;
     try {
-      return await redis.del(key);
+      return await r.del(key);
     } catch (e) {
       console.error('KV DEL Error:', e);
       return 0;
