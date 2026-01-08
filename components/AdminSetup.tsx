@@ -58,7 +58,7 @@ export default function AdminSetup() {
                 const errJson = JSON.parse(errText);
                 setApiError(errJson.message || `Erro ${resConfig.status}`);
               } catch {
-                setApiError(`Erro ${resConfig.status}: ${errText.slice(0, 50)}...`);
+                setApiError(`Erro ${resConfig.status}: ${errText.slice(0, 100)}`);
               }
           }
         } catch (e: any) {
@@ -86,7 +86,8 @@ export default function AdminSetup() {
                 const errJson = JSON.parse(errText);
                 setDbError(errJson.message || `Erro ${resDb.status}`);
               } catch {
-                setDbError(`Erro ${resDb.status}: ${errText.slice(0, 50)}...`);
+                // Exibe até 200 chars para ver o erro do Vercel
+                setDbError(`${errText.slice(0, 200)}...`);
               }
           }
         } catch (e: any) {
@@ -273,9 +274,10 @@ export default function AdminSetup() {
                         </div>
                     </div>
                     {dbError && (
-                      <p className="text-xs text-red-400 mt-2 font-mono bg-red-950/30 p-2 rounded border border-red-900/50">
-                        {dbError}
-                      </p>
+                      <div className="mt-2 text-xs font-mono bg-red-950/30 p-2 rounded border border-red-900/50 break-all whitespace-pre-wrap">
+                        <p className="text-red-400 font-bold mb-1">Erro Detectado:</p>
+                        <span className="text-red-300">{dbError}</span>
+                      </div>
                     )}
                 </div>
             </div>

@@ -1,11 +1,12 @@
-import pg from 'pg';
+import { createRequire } from 'module';
 
-// Robust pool extraction to handle CommonJS/ESM interop in Vercel/Node
-// Isso corrige o erro onde Pool é undefined dependendo do bundler
-const Pool = pg.Pool || (pg as any).default?.Pool || (pg as any).default;
+// Em ambientes serverless (Vercel), a importação ESM do pg às vezes falha ao identificar o construtor Pool.
+// O uso de createRequire garante o carregamento correto do módulo CommonJS.
+const require = createRequire(import.meta.url);
+const { Pool } = require('pg');
 
 // Singleton Pool
-let pool: pg.Pool | null = null;
+let pool: any = null;
 let migrationPromise: Promise<any> | null = null;
 
 const getPool = () => {
@@ -31,7 +32,7 @@ const getPool = () => {
       connectionTimeoutMillis: 5000,
     });
 
-    pool.on('error', (err) => {
+    pool.on('error', (err: Error) => {
       console.error('Unexpected error on idle client', err);
       // Não limpa o pool aqui, deixa o Vercel matar o processo se necessário
     });
@@ -55,7 +56,7 @@ const ensureSchema = async () => {
           value JSONB,
           expires_at TIMESTAMPTZ
         );
-      `).catch(err => {
+      `).catch((err: Error) => {
         console.error('Migration Query Failed:', err);
         migrationPromise = null; // Reset para tentar novamente na próxima req
         throw err;
