@@ -20,13 +20,23 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({
         appId: config?.appId || '',
         // Não retornamos appSecret por segurança
-        webhookUrl: config?.webhookUrl || '',
         redirectUri: `${baseUrl}/api/auth/meta/callback`
       });
     }
 
     if (req.method === 'POST') {
-      const { appId, appSecret, webhookUrl } = req.body || {};
+      // Garante que o body seja um objeto, mesmo se vier como string (comum em serverless/proxies)
+      let body = req.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch (e) {
+          return sendError(res, 400, 'invalid_json', 'Request body is not valid JSON');
+        }
+      }
+      body = body || {};
+
+      const { appId, appSecret } = body;
       
       // Validação básica
       if (!appId) {
@@ -38,8 +48,7 @@ export default async function handler(req: any, res: any) {
 
       const newConfig = {
         appId,
-        // Usa nullish coalescing para permitir salvar string vazia (limpar campo)
-        webhookUrl: webhookUrl !== undefined ? webhookUrl : currentConfig.webhookUrl,
+        // Mantemos a lógica: se vier string vazia, atualiza; se vier undefined/null, mantém atual
         appSecret: appSecret ? encrypt(appSecret) : currentConfig.appSecret
       };
 
