@@ -1,9 +1,19 @@
-import { createRequire } from 'module';
+import pg from 'pg';
 
-// Em ambientes serverless (Vercel), a importação ESM do pg às vezes falha ao identificar o construtor Pool.
-// O uso de createRequire garante o carregamento correto do módulo CommonJS.
-const require = createRequire(import.meta.url);
-const { Pool } = require('pg');
+// Robustez para importação do Pool em diferentes ambientes (Vercel, Vite, CJS, ESM)
+let Pool = pg.Pool;
+
+// Se a importação padrão falhar em encontrar o Pool (comum em builds mistos)
+if (!Pool) {
+  // @ts-ignore
+  if (pg.default?.Pool) {
+     // @ts-ignore
+    Pool = pg.default.Pool;
+  } else {
+    // Última tentativa: o próprio export pode ser o Pool em algumas versões legadas/shims
+    Pool = pg as any;
+  }
+}
 
 // Singleton Pool
 let pool: any = null;
@@ -20,21 +30,21 @@ const getPool = () => {
 
   if (!connectionString) {
     console.error('CRITICAL: Database URL not found (POSTGRES_URL, NILEDB_URL or DATABASE_URL).');
-    throw new Error('Database configuration missing');
+    throw new Error('Database configuration missing. Please set POSTGRES_URL in .env');
   }
 
   try {
+    // Configuração explícita para Serverless + SSL
     pool = new Pool({
       connectionString,
-      ssl: { rejectUnauthorized: false }, // Necessário para conexões externas seguras (Nile/Vercel)
-      max: 5, // Limite de conexões para serverless
+      ssl: { rejectUnauthorized: false }, // Nile/Vercel/Neon exigem SSL
+      max: 2, // Reduzido para evitar exaustão de conexões em serverless (cold start)
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 5000, // Fail fast
     });
 
     pool.on('error', (err: Error) => {
       console.error('Unexpected error on idle client', err);
-      // Não limpa o pool aqui, deixa o Vercel matar o processo se necessário
     });
 
     return pool;
@@ -84,7 +94,6 @@ export const kv = {
       return res.rows[0].value as T;
     } catch (e: any) {
       console.error(`DB GET Error [${key}]:`, e.message);
-      // Retorna null em vez de quebrar, para resiliência (mas loga erro)
       return null;
     }
   },

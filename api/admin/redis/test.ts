@@ -1,14 +1,13 @@
 import { kv } from '../../_lib/kv';
 import { getUser, isMasterAdmin, sendError } from '../../_lib/auth';
 
-// Endpoint mantido em /api/admin/redis/test para compatibilidade,
-// mas executa verificações no PostgreSQL (Nile).
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST' && req.method !== 'GET') {
-    return sendError(res, 405, 'method_not_allowed', 'Method not allowed');
-  }
-
+  // Try-catch de nível superior para capturar erros de inicialização de módulo ou falhas síncronas
   try {
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      return sendError(res, 405, 'method_not_allowed', 'Method not allowed');
+    }
+
     const user = await getUser(req);
     if (!user) return sendError(res, 401, 'unauthorized', 'Login requerido');
 
@@ -16,9 +15,9 @@ export default async function handler(req: any, res: any) {
     if (!isAdmin) return sendError(res, 403, 'forbidden', 'Acesso negado');
 
     // Verifica ENV
-    const envUrl = process.env.POSTGRES_URL || process.env.NILEDB_URL;
+    const envUrl = process.env.POSTGRES_URL || process.env.NILEDB_URL || process.env.DATABASE_URL;
     if (!envUrl) {
-        return sendError(res, 500, 'config_error', 'Variáveis POSTGRES_URL ou NILEDB_URL não encontradas no ambiente.');
+        return sendError(res, 500, 'config_error', 'Nenhuma variável de conexão (POSTGRES_URL) encontrada.');
     }
 
     // Teste Round-Trip no Postgres
@@ -42,7 +41,7 @@ export default async function handler(req: any, res: any) {
             success: true,
             provider: 'PostgreSQL (Nile)',
             latency_ms: latency,
-            message: `Banco de Dados Operacional (Nile). Latência: ${latency}ms`
+            message: `Banco de Dados Operacional. Latência: ${latency}ms`
         });
     } catch (dbError: any) {
         console.error('DB Operation Failed:', dbError);
@@ -50,7 +49,14 @@ export default async function handler(req: any, res: any) {
     }
 
   } catch (e: any) {
-    console.error('DB Test Critical Error:', e);
-    return sendError(res, 500, 'server_error', `Falha interna no handler: ${e.message}`);
+    console.error('DB Test Critical Error (Top Level):', e);
+    // Tenta enviar uma resposta JSON mesmo em caso de crash crítico, se headers ainda não foram enviados
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: 'server_crash',
+        message: `Critical Server Error: ${e.message}`,
+        requestId: `req_${Date.now()}`
+      });
+    }
   }
 }
