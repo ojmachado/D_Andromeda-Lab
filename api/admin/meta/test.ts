@@ -38,7 +38,8 @@ export default async function handler(req: any, res: any) {
 
     if (data.error) {
       console.error('Meta API Error:', data.error);
-      return sendError(res, 400, 'meta_api_error', `Meta recusou a conexão: ${data.error.message}`);
+      // Passa o erro completo como details para o frontend exibir (type, code, message)
+      return sendError(res, 400, 'meta_api_error', data.error.message, data.error);
     }
 
     if (!data.access_token) {

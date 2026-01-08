@@ -1,8 +1,8 @@
 import { kv } from '../../_lib/kv';
 import { getUser, isMasterAdmin, sendError } from '../../_lib/auth';
 
-// Mantemos a rota com nome antigo (redis) para não quebrar o frontend, 
-// mas testamos o Postgres (Nile) internamente.
+// Endpoint mantido em /api/admin/redis/test para compatibilidade,
+// mas executa verificações no PostgreSQL (Nile).
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     return sendError(res, 405, 'method_not_allowed', 'Method not allowed');
@@ -18,7 +18,7 @@ export default async function handler(req: any, res: any) {
     // Verifica ENV
     const envUrl = process.env.POSTGRES_URL || process.env.NILEDB_URL;
     if (!envUrl) {
-        return sendError(res, 500, 'config_error', 'Nenhuma variável POSTGRES_URL encontrada.');
+        return sendError(res, 500, 'config_error', 'Variáveis POSTGRES_URL ou NILEDB_URL não encontradas no ambiente.');
     }
 
     // Teste Round-Trip no Postgres
@@ -35,21 +35,22 @@ export default async function handler(req: any, res: any) {
         const latency = endTime - startTime;
 
         if (!retrieved || retrieved.check !== startTime) {
-            return sendError(res, 500, 'data_integrity_error', 'Falha na integridade dos dados (escrita != leitura).');
+            return sendError(res, 500, 'data_integrity_error', 'Falha na integridade dos dados (valor gravado difere do lido).');
         }
 
         return res.status(200).json({
             success: true,
             provider: 'PostgreSQL (Nile)',
             latency_ms: latency,
-            message: `Nile DB Operacional. Latência: ${latency}ms`
+            message: `Banco de Dados Operacional (Nile). Latência: ${latency}ms`
         });
     } catch (dbError: any) {
-        return sendError(res, 500, 'db_operation_failed', `Erro ao operar no banco: ${dbError.message}`);
+        console.error('DB Operation Failed:', dbError);
+        return sendError(res, 500, 'db_operation_failed', `Erro ao conectar/gravar no banco: ${dbError.message}`);
     }
 
   } catch (e: any) {
     console.error('DB Test Critical Error:', e);
-    return sendError(res, 500, 'server_error', `Falha interna: ${e.message}`);
+    return sendError(res, 500, 'server_error', `Falha interna no handler: ${e.message}`);
   }
 }
