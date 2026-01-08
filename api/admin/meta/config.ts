@@ -1,12 +1,17 @@
 import { kv, KEYS } from '../../_lib/kv';
-import { getUser, errorResponse } from '../../_lib/auth';
+import { getUser, isMasterAdmin, errorResponse } from '../../_lib/auth';
 import { encrypt } from '../../_lib/crypto';
 import { MetaConfig } from '../../../shared/types';
 
 export default async function handler(req: Request) {
   const user = await getUser(req);
   if (!user) return errorResponse(401, 'unauthorized', 'Login requerido');
-  // TODO: Adicionar verificação de role ADMIN aqui
+
+  // Verificação de segurança: Apenas o Master User pode acessar esta rota
+  const isAdmin = await isMasterAdmin(user.userId);
+  if (!isAdmin) {
+    return errorResponse(403, 'forbidden', 'Acesso negado. Apenas o Master User pode configurar o sistema.');
+  }
 
   if (req.method === 'GET') {
     const config = await kv.get<any>(KEYS.META_CONFIG);
@@ -32,4 +37,6 @@ export default async function handler(req: Request) {
 
     return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
   }
+
+  return errorResponse(405, 'method_not_allowed', 'Method not allowed');
 }
