@@ -1,28 +1,32 @@
 import pg from 'pg';
 
-// Robustez para importação do Pool em diferentes ambientes (Vercel, Vite, CJS, ESM)
-let Pool = pg.Pool;
-
-// Se a importação padrão falhar em encontrar o Pool (comum em builds mistos)
-if (!Pool) {
-  // @ts-ignore
-  if (pg.default?.Pool) {
-     // @ts-ignore
-    Pool = pg.default.Pool;
-  } else {
-    // Última tentativa: o próprio export pode ser o Pool em algumas versões legadas/shims
-    Pool = pg as any;
-  }
-}
-
-// Singleton Pool
+// Manteve-se a variável global para Cache do Pool (Singleton no contexto da Lambda)
 let pool: any = null;
 let migrationPromise: Promise<any> | null = null;
 
 const getPool = () => {
   if (pool) return pool;
 
-  // Tenta várias variáveis de ambiente comuns
+  // 1. Resolução segura do Construtor Pool (Lazy Loading)
+  // Isso evita que acessos a propriedades indefinidas quebrem a função no import (top-level)
+  // O crash "FUNCTION_INVOCATION_FAILED" geralmente ocorre aqui se feito fora da função.
+  let PoolCtor = pg.Pool;
+  
+  // Fallback para importações CommonJS/ESM mistas onde o default export encapsula o módulo
+  if (!PoolCtor) {
+      if ((pg as any).default?.Pool) {
+          PoolCtor = (pg as any).default.Pool;
+      } else if ((pg as any).default) {
+          PoolCtor = (pg as any).default;
+      }
+  }
+
+  if (!PoolCtor) {
+      console.error('PG Driver Import Structure:', JSON.stringify(pg)); // Log para debug se falhar
+      throw new Error('PostgreSQL Driver (pg) failed to load Pool constructor. Check bundle settings.');
+  }
+
+  // 2. Verificação de Ambiente
   const connectionString = 
     process.env.POSTGRES_URL || 
     process.env.NILEDB_URL || 
@@ -33,14 +37,14 @@ const getPool = () => {
     throw new Error('Database configuration missing. Please set POSTGRES_URL in .env');
   }
 
+  // 3. Instanciação
   try {
-    // Configuração explícita para Serverless + SSL
-    pool = new Pool({
+    pool = new PoolCtor({
       connectionString,
-      ssl: { rejectUnauthorized: false }, // Nile/Vercel/Neon exigem SSL
-      max: 2, // Reduzido para evitar exaustão de conexões em serverless (cold start)
+      ssl: { rejectUnauthorized: false }, // Nile/Vercel exigem SSL
+      max: 2, // Limite conservador para serverless
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000, // Fail fast
+      connectionTimeoutMillis: 5000, 
     });
 
     pool.on('error', (err: Error) => {
