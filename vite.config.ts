@@ -12,10 +12,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './'),
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: true
+  },
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000', // Mock for local dev if needed, typically handled by Vercel Dev
+        target: 'http://localhost:3000',
         changeOrigin: true,
       }
     }

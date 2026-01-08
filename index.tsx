@@ -22,18 +22,36 @@ const getEnv = (key: string) => {
 
 const clerkPubKey = getEnv('VITE_CLERK_PUBLISHABLE_KEY');
 
-if (!clerkPubKey) {
-  console.warn("VITE_CLERK_PUBLISHABLE_KEY is missing. Check your environment variables.");
-}
-
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <ClerkProvider publishableKey={clerkPubKey || ''}>
-        <App />
-      </ClerkProvider>
-    </React.StrictMode>
-  );
+  if (!clerkPubKey) {
+    // Render a safe error screen instead of crashing
+    ReactDOM.createRoot(rootElement).render(
+      <div style={{ 
+        display: 'flex', 
+        height: '100vh', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        backgroundColor: '#0B0E14', 
+        color: '#E2E8F0',
+        fontFamily: 'sans-serif',
+        textAlign: 'center'
+      }}>
+        <div>
+          <h1 style={{ color: '#EF4444', fontSize: '1.5rem', marginBottom: '1rem' }}>Configuration Error</h1>
+          <p>Missing <code>VITE_CLERK_PUBLISHABLE_KEY</code> environment variable.</p>
+          <p style={{ marginTop: '0.5rem', color: '#94A3B8' }}>Please check your .env file or deployment settings.</p>
+        </div>
+      </div>
+    );
+  } else {
+    ReactDOM.createRoot(rootElement).render(
+      <React.StrictMode>
+        <ClerkProvider publishableKey={clerkPubKey}>
+          <App />
+        </ClerkProvider>
+      </React.StrictMode>
+    );
+  }
 }
