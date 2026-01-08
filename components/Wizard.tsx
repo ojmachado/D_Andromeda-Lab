@@ -21,7 +21,10 @@ import {
   BadgeCheck,
   Settings,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Terminal
 } from 'lucide-react';
 import { MetaBusiness, MetaAdAccount, MetaInsight } from '../shared/types';
 
@@ -35,6 +38,7 @@ export default function Wizard() {
   const [step, setStep] = useState(parseInt(searchParams.get('step') || '1'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null); // Estado para detalhes técnicos do erro
   
   // Data State
   const [businesses, setBusinesses] = useState<MetaBusiness[]>([]);
@@ -45,6 +49,9 @@ export default function Wizard() {
   const [selectedBusiness, setSelectedBusiness] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // UI Helper State
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   // Sync step from URL
   useEffect(() => {
@@ -52,6 +59,7 @@ export default function Wizard() {
     setStep(urlStep);
     setSearchTerm('');
     setError(null); // Clear errors on step change
+    setErrorDetails(null);
   }, [searchParams]);
 
   // Actions
@@ -142,8 +150,11 @@ export default function Wizard() {
 
   const runTest = async () => {
     setLoading(true);
-    setError(null); // Limpa erros anteriores
-    setInsights(null); // Reseta insights
+    setError(null);
+    setErrorDetails(null);
+    setInsights(null);
+    setShowErrorDetails(false);
+
     try {
         const token = await getToken();
         const today = new Date();
@@ -156,9 +167,9 @@ export default function Wizard() {
             headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Tratamento robusto de resposta não-JSON (ex: erro de infraestrutura)
         const contentType = res.headers.get('content-type');
         let data;
+        
         if (contentType && contentType.includes('application/json')) {
             data = await res.json();
         } else {
@@ -167,13 +178,16 @@ export default function Wizard() {
         }
 
         if (!res.ok) {
-            // Usa a mensagem específica retornada pela API do Meta via Backend
+            // Captura detalhes técnicos se disponíveis (vindos do Meta via Backend)
+            if (data.details) {
+                setErrorDetails(data.details);
+            }
+            // Usa a mensagem específica retornada pela API do Meta
             throw new Error(data.message || data.error || 'Falha na comunicação com a API do Meta');
         }
         
         setInsights(data.data || []);
     } catch (e: any) {
-        // Exibe a mensagem de erro específica para o usuário
         setError(e.message || 'Erro desconhecido ao testar insights.');
     } finally {
         setLoading(false);
@@ -253,7 +267,7 @@ export default function Wizard() {
                 )}
                 
                 {/* Global Error Banner inside Card */}
-                {error && (
+                {error && step !== 4 && (
                     <div className="absolute top-0 left-0 w-full p-4 z-10">
                         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                             <AlertTriangle className="text-red-600 dark:text-red-400 shrink-0" size={20} />
@@ -482,18 +496,47 @@ export default function Wizard() {
                         <div className="p-6 md:p-8 bg-gray-50/50 dark:bg-[#0B0E14]/30 flex flex-col items-center justify-center gap-6 flex-1 relative">
                             {/* Specific error display for step 4 */}
                             {error && (
-                                <div className="w-full max-w-2xl mb-6 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30 p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                                    <XCircle className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
-                                    <div>
-                                        <h4 className="text-sm font-bold text-red-900 dark:text-red-300">Falha na conexão com Meta API</h4>
-                                        <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
-                                        <button 
-                                            onClick={() => setError(null)}
-                                            className="text-xs font-medium text-red-600 dark:text-red-400 underline mt-2 hover:text-red-800"
-                                        >
-                                            Dispensar erro
-                                        </button>
+                                <div className="w-full max-w-2xl mb-6 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+                                    {/* Main Error Banner */}
+                                    <div className="w-full rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30 p-4 flex items-start gap-3">
+                                        <XCircle className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-red-900 dark:text-red-300">Falha na conexão com Meta API</h4>
+                                            <p className="text-sm text-red-700 dark:text-red-400 mt-1 font-medium">{error}</p>
+                                            
+                                            <div className="flex items-center gap-4 mt-3">
+                                                <button 
+                                                    onClick={() => runTest()} 
+                                                    className="text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-800 bg-red-100 dark:bg-red-900/40 px-3 py-1.5 rounded-md transition-colors"
+                                                >
+                                                    Tentar Novamente
+                                                </button>
+                                                
+                                                {errorDetails && (
+                                                    <button 
+                                                        onClick={() => setShowErrorDetails(!showErrorDetails)}
+                                                        className="text-xs font-medium text-red-600 dark:text-red-400 underline hover:text-red-800 flex items-center gap-1"
+                                                    >
+                                                        {showErrorDetails ? <ChevronUp size={14}/> : <ChevronDown size={14} />}
+                                                        {showErrorDetails ? 'Ocultar detalhes' : 'Ver detalhes técnicos'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    {/* Technical Details Accordion */}
+                                    {errorDetails && showErrorDetails && (
+                                        <div className="w-full rounded-lg bg-slate-900 border border-slate-700 p-4 overflow-hidden">
+                                            <div className="flex items-center gap-2 text-slate-400 mb-2 border-b border-slate-700 pb-2">
+                                                <Terminal size={14} />
+                                                <span className="text-xs font-mono font-bold uppercase">Debug Info</span>
+                                            </div>
+                                            <pre className="text-xs font-mono text-green-400 overflow-x-auto whitespace-pre-wrap">
+                                                {JSON.stringify(errorDetails, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
