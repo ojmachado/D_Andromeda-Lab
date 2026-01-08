@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Workspace } from '../shared/types';
-import { Loader2, Plus, ArrowRight, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, ArrowRight, CircleAlert } from 'lucide-react';
 
 export default function WorkspacesList() {
   const { getToken } = useAuth();

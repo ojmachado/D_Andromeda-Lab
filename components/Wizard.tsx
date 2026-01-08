@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import { CheckCircle, Circle, ArrowRight, Loader2, BarChart2 } from 'lucide-react';
+import { CircleCheck, Circle, ArrowRight, Loader2, ChartBar } from 'lucide-react';
 import { MetaBusiness, MetaAdAccount, MetaInsight } from '../shared/types';
 
 export default function Wizard() {
@@ -114,7 +114,7 @@ export default function Wizard() {
     return (
         <div className="flex flex-col items-center gap-2 relative z-10">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${active ? 'border-primary bg-surface text-primary' : done ? 'border-primary bg-primary text-white' : 'border-gray-700 bg-surface text-gray-700'}`}>
-                {done ? <CheckCircle size={20} /> : <span className="font-bold">{s}</span>}
+                {done ? <CircleCheck size={20} /> : <span className="font-bold">{s}</span>}
             </div>
             <span className={`text-xs font-medium ${active || done ? 'text-white' : 'text-gray-600'}`}>{label}</span>
         </div>
@@ -197,12 +197,12 @@ export default function Wizard() {
                     <h2 className="text-xl font-bold mb-6">Teste de Conexão</h2>
                     {!insights ? (
                         <button onClick={runTest} className="bg-secondary hover:bg-indigo-600 text-white px-8 py-3 rounded-lg flex items-center gap-2 mx-auto">
-                            <BarChart2 /> Rodar Diagnóstico
+                            <ChartBar /> Rodar Diagnóstico
                         </button>
                     ) : (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-green-500/10 border border-green-500/30 p-4 rounded-lg mb-6 inline-flex items-center gap-2 text-green-400">
-                                <CheckCircle size={20} /> Sucesso! Recuperamos {insights.length} dias de dados.
+                                <CircleCheck size={20} /> Sucesso! Recuperamos {insights.length} dias de dados.
                             </div>
                             <div className="grid grid-cols-3 gap-4 mb-8 text-left">
                                 <div className="bg-background p-4 rounded border border-border">
@@ -227,7 +227,7 @@ export default function Wizard() {
             {step === 5 && (
                 <div className="text-center py-10">
                     <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle className="w-10 h-10 text-green-500" />
+                        <CircleCheck className="w-10 h-10 text-green-500" />
                     </div>
                     <h2 className="text-3xl font-bold mb-4">Tudo pronto!</h2>
                     <p className="text-gray-400 mb-8">O Andromeda Lab está sincronizado com sua conta.</p>
