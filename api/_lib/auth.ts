@@ -5,6 +5,13 @@ export async function getUser(req: Request) {
   if (!authHeader?.startsWith('Bearer ')) return null;
 
   const token = authHeader.split(' ')[1];
+  
+  // Verificação de segurança para ambiente de desenvolvimento/produção
+  if (!process.env.CLERK_SECRET_KEY) {
+    console.error('CRITICAL ERROR: CLERK_SECRET_KEY is missing in environment variables.');
+    return null;
+  }
+
   try {
     // Valida o token JWT do Clerk
     const verifiedToken = await verifyToken(token, {
