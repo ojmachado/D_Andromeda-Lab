@@ -23,27 +23,17 @@ const getEnv = (key: string) => {
 const clerkPubKey = getEnv('VITE_CLERK_PUBLISHABLE_KEY');
 
 if (!clerkPubKey) {
-  console.error("Missing VITE_CLERK_PUBLISHABLE_KEY");
+  console.warn("VITE_CLERK_PUBLISHABLE_KEY is missing. Check your environment variables.");
 }
 
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
-  if (!clerkPubKey) {
-    rootElement.innerHTML = `
-      <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #0B0E14; color: white; font-family: sans-serif;">
-        <h2 style="color: #EF4444; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">Configuration Missing</h2>
-        <p><code>VITE_CLERK_PUBLISHABLE_KEY</code> is not defined.</p>
-        <p style="color: #94A3B8; margin-top: 0.5rem;">Check your environment variables.</p>
-      </div>
-    `;
-  } else {
-    ReactDOM.createRoot(rootElement).render(
-      <React.StrictMode>
-        <ClerkProvider publishableKey={clerkPubKey}>
-          <App />
-        </ClerkProvider>
-      </React.StrictMode>
-    );
-  }
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <ClerkProvider publishableKey={clerkPubKey || ''}>
+        <App />
+      </ClerkProvider>
+    </React.StrictMode>
+  );
 }
