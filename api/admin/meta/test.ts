@@ -1,47 +1,58 @@
 import { kv, KEYS } from '../../_lib/kv';
-import { getUser, isMasterAdmin, errorResponse } from '../../_lib/auth';
+import { getUser, isMasterAdmin, sendError } from '../../_lib/auth';
 import { decrypt } from '../../_lib/crypto';
 
-export default async function handler(req: Request) {
-  // 1. Verificação de Autenticação e Permissão Admin
-  const user = await getUser(req);
-  if (!user) return errorResponse(401, 'unauthorized', 'Login requerido');
-
-  const isAdmin = await isMasterAdmin(user.userId);
-  if (!isAdmin) return errorResponse(403, 'forbidden', 'Acesso negado');
-
-  if (req.method !== 'POST') return errorResponse(405, 'method_not_allowed', 'Method not allowed');
+export default async function handler(req: any, res: any) {
+  // Garante método POST
+  if (req.method !== 'POST') {
+    return sendError(res, 405, 'method_not_allowed', 'Method not allowed');
+  }
 
   try {
-    // 2. Recuperar configurações salvas
+    // 1. Verificação de Autenticação
+    const user = await getUser(req);
+    if (!user) return sendError(res, 401, 'unauthorized', 'Login requerido');
+
+    // 2. Verificação de Admin
+    const isAdmin = await isMasterAdmin(user.userId);
+    if (!isAdmin) return sendError(res, 403, 'forbidden', 'Acesso negado');
+
+    // 3. Recuperar configurações
     const config = await kv.get<any>(KEYS.META_CONFIG);
     if (!config?.appId || !config?.appSecret) {
-      return errorResponse(400, 'config_missing', 'Salve as configurações antes de testar');
+      return sendError(res, 400, 'config_missing', 'Salve as configurações antes de testar');
     }
 
-    const appSecret = decrypt(config.appSecret);
+    let appSecret;
+    try {
+      appSecret = decrypt(config.appSecret);
+    } catch (e) {
+      return sendError(res, 500, 'crypto_error', 'Erro ao descriptografar App Secret. Verifique SESSION_SECRET.');
+    }
 
-    // 3. Testar credenciais gerando um App Access Token
-    // Utilizamos client_credentials pois serve especificamente para validar App ID + Secret
+    // 4. Testar credenciais no Meta (Client Credentials Flow)
     const url = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${config.appId}&client_secret=${appSecret}&grant_type=client_credentials`;
     
-    const res = await fetch(url);
-    const data = await res.json();
+    const apiRes = await fetch(url);
+    const data = await apiRes.json();
 
     if (data.error) {
-      throw new Error(data.error.message || 'Erro desconhecido na API do Meta');
+      console.error('Meta API Error:', data.error);
+      return sendError(res, 400, 'meta_api_error', `Meta recusou a conexão: ${data.error.message}`);
     }
 
     if (!data.access_token) {
-        throw new Error('Não foi possível obter o token de acesso. Verifique as credenciais.');
+      return sendError(res, 500, 'invalid_response', 'Meta não retornou token de acesso.');
     }
 
     // Sucesso
-    return new Response(JSON.stringify({ success: true, message: 'Integração confirmada! Credenciais válidas.' }), {
-      headers: { 'Content-Type': 'application/json' }
+    return res.status(200).json({
+      success: true,
+      message: 'Integração confirmada! Credenciais válidas e App autenticado.'
     });
 
   } catch (e: any) {
-    return errorResponse(500, 'test_failed', `Falha no teste: ${e.message}`);
+    console.error('Test Handler Critical Error:', e);
+    return sendError(res, 500, 'server_error', `Falha interna no servidor: ${e.message}`);
   }
 }

@@ -1,52 +1,56 @@
 import { kv, KEYS } from '../../_lib/kv';
-import { getUser, errorResponse } from '../../_lib/auth';
-import { decrypt, encrypt } from '../../_lib/crypto';
+import { getUser, sendError } from '../../_lib/auth';
+import { decrypt } from '../../_lib/crypto';
 import { getBusinesses, getAdAccounts, getInsights } from '../../_lib/meta';
 
-export default async function handler(req: Request) {
-  const user = await getUser(req);
-  if (!user) return errorResponse(401, 'unauthorized', 'Login requerido');
-
-  const url = new URL(req.url);
-  const action = url.searchParams.get('action'); // businesses, adaccounts, insights
-  const workspaceId = url.searchParams.get('workspaceId');
-
-  if (!workspaceId) return errorResponse(400, 'missing_id', 'Workspace ID required');
-
-  const ws = await kv.get<any>(KEYS.WORKSPACE(workspaceId));
-  if (!ws || ws.ownerId !== user.userId) return errorResponse(403, 'forbidden', 'Access denied');
-
-  // Recupera Access Token
-  if (!ws.meta?.accessToken) return errorResponse(400, 'not_connected', 'Meta not connected');
-  const accessToken = decrypt(ws.meta.accessToken);
-
+export default async function handler(req: any, res: any) {
   try {
+    const user = await getUser(req);
+    if (!user) return sendError(res, 401, 'unauthorized', 'Login requerido');
+
+    // Em Vercel Node, query params ficam em req.query
+    const { action, workspaceId, businessId, adAccountId, since, until } = req.query;
+
+    if (!workspaceId) return sendError(res, 400, 'missing_id', 'Workspace ID required');
+
+    const ws = await kv.get<any>(KEYS.WORKSPACE(workspaceId));
+    if (!ws || ws.ownerId !== user.userId) return sendError(res, 403, 'forbidden', 'Access denied');
+
+    // Recupera Access Token
+    if (!ws.meta?.accessToken) return sendError(res, 400, 'not_connected', 'Meta not connected');
+    
+    let accessToken;
+    try {
+      accessToken = decrypt(ws.meta.accessToken);
+    } catch (e) {
+      return sendError(res, 500, 'crypto_error', 'Invalid stored token');
+    }
+
     if (req.method === 'GET') {
       if (action === 'businesses') {
         const data = await getBusinesses(accessToken);
-        return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+        return res.status(200).json(data);
       }
 
       if (action === 'adaccounts') {
-        const businessId = url.searchParams.get('businessId');
-        const data = await getAdAccounts(accessToken, businessId || undefined);
-        return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+        const data = await getAdAccounts(accessToken, businessId);
+        return res.status(200).json(data);
       }
 
       if (action === 'insights') {
-        const adAccountId = url.searchParams.get('adAccountId') || ws.meta.adAccountId;
-        const since = url.searchParams.get('since');
-        const until = url.searchParams.get('until');
-        if (!adAccountId) return errorResponse(400, 'missing_account', 'Ad Account ID required');
+        const targetAccountId = adAccountId || ws.meta.adAccountId;
+        if (!targetAccountId) return sendError(res, 400, 'missing_account', 'Ad Account ID required');
         
-        const data = await getInsights(accessToken, adAccountId, since!, until!);
-        return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+        const data = await getInsights(accessToken, targetAccountId, since, until);
+        if (data.error) {
+           return sendError(res, 400, 'meta_error', data.error.message, data.error);
+        }
+        return res.status(200).json(data);
       }
     }
 
     if (req.method === 'POST' && action === 'select') {
-      const body = await req.json();
-      // Salva configuração escolhida
+      const body = req.body;
       ws.meta = {
         ...ws.meta,
         status: 'configured',
@@ -56,12 +60,13 @@ export default async function handler(req: Request) {
         timezone: body.timezone
       };
       await kv.set(KEYS.WORKSPACE(workspaceId), ws);
-      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+      return res.status(200).json({ success: true });
     }
 
-  } catch (err: any) {
-    return errorResponse(500, 'meta_api_error', err.message);
-  }
+    return sendError(res, 404, 'not_found', 'Endpoint or action not found');
 
-  return errorResponse(404, 'not_found', 'Endpoint not found');
+  } catch (err: any) {
+    console.error('RPC Error:', err);
+    return sendError(res, 500, 'server_error', err.message);
+  }
 }
