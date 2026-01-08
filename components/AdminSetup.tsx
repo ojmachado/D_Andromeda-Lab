@@ -22,6 +22,7 @@ export default function AdminSetup() {
   // Status Indicators
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [redisStatus, setRedisStatus] = useState<'checking' | 'operational' | 'error'>('checking');
+  const [redisLatency, setRedisLatency] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
@@ -38,19 +39,33 @@ export default function AdminSetup() {
 
     try {
         const token = await getToken();
-        const start = Date.now();
-        const res = await fetch('/api/admin/meta/config', { headers: { Authorization: `Bearer ${token}` } });
         
-        if (res.ok) {
+        // 1. Carregar Config (Verifica API)
+        const resConfig = await fetch('/api/admin/meta/config', { headers: { Authorization: `Bearer ${token}` } });
+        
+        if (resConfig.ok) {
             setApiStatus('online');
-            setRedisStatus('operational'); 
-            
-            const data = await res.json();
+            const data = await resConfig.json();
             if (data.appId) setAppId(data.appId);
         } else {
             setApiStatus('offline');
-            setRedisStatus('error');
         }
+
+        // 2. Testar Redis (Verifica Infra)
+        const resRedis = await fetch('/api/admin/redis/test', { 
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` } 
+        });
+
+        if (resRedis.ok) {
+            const redisData = await resRedis.json();
+            setRedisStatus('operational');
+            setRedisLatency(redisData.latency_ms);
+        } else {
+            setRedisStatus('error');
+            setRedisLatency(null);
+        }
+
     } catch (e) {
         console.error(e);
         setApiStatus('offline');
@@ -202,13 +217,18 @@ export default function AdminSetup() {
                 </div>
                 <div className="flex flex-col gap-2 rounded-xl p-6 border border-slate-200 dark:border-[#3b3267] bg-surface-light dark:bg-surface-dark">
                     <div className="flex items-center justify-between">
-                        <p className="text-slate-500 dark:text-[#9b92c9] text-sm font-medium uppercase tracking-wider">Redis / KV Store</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-slate-500 dark:text-[#9b92c9] text-sm font-medium uppercase tracking-wider">Redis / KV Store</p>
+                            <button onClick={() => initialize()} className="text-xs text-primary hover:underline" title="Re-testar conexão">
+                                <span className="material-symbols-outlined text-[16px]">refresh</span>
+                            </button>
+                        </div>
                         <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold
                             ${redisStatus === 'operational' ? 'bg-[#0bda6c]/10 text-[#0bda6c]' : 
                               redisStatus === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'}
                         `}>
                             <span className="material-symbols-outlined text-[14px]">database</span>
-                            {redisStatus === 'operational' ? 'OPERATIONAL' : 'ERROR'}
+                            {redisStatus === 'operational' ? (redisLatency ? `ACTIVE (${redisLatency}ms)` : 'ACTIVE') : 'ERROR'}
                         </div>
                     </div>
                 </div>
