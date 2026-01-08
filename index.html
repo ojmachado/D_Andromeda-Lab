@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Andromeda Lab</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -12,17 +19,28 @@
           extend: {
             colors: {
               background: '#0B0E14',
+              "background-light": "#f6f6f8",
+              "background-dark": "#111621",
               surface: '#151A25',
-              primary: '#3B82F6',
+              "surface-dark": "#1a2232",
+              "surface-light": "#ffffff",
+              primary: '#1754cf', // Updated to match design
               secondary: '#6366F1',
               border: '#2A3241'
+            },
+            fontFamily: {
+              "display": ["Manrope", "sans-serif"],
+              "sans": ["Manrope", "sans-serif"]
             }
           }
         }
       }
     </script>
     <style>
-      body { background-color: #0B0E14; color: #E2E8F0; }
+      body { background-color: #111621; color: #E2E8F0; font-family: 'Manrope', sans-serif; }
+      /* Custom scrollbar matching design */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
   <script type="importmap">
 {

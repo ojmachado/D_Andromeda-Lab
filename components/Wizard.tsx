@@ -1,7 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import { CircleCheck, Circle, ArrowRight, Loader2, ChartBar } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  Loader2, 
+  Search, 
+  Filter, 
+  Check, 
+  Zap, 
+  CheckCircle2,
+  Facebook,
+  Lock,
+  Info,
+  Eye,
+  MousePointerClick,
+  DollarSign,
+  TrendingUp,
+  RefreshCcw,
+  Rocket,
+  ReceiptText,
+  BadgeCheck,
+  Settings
+} from 'lucide-react';
 import { MetaBusiness, MetaAdAccount, MetaInsight } from '../shared/types';
 
 export default function Wizard() {
@@ -22,11 +43,13 @@ export default function Wizard() {
   // Selection State
   const [selectedBusiness, setSelectedBusiness] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Sync step from URL
   useEffect(() => {
     const urlStep = parseInt(searchParams.get('step') || '1');
     setStep(urlStep);
+    setSearchTerm('');
   }, [searchParams]);
 
   // Actions
@@ -86,7 +109,6 @@ export default function Wizard() {
   const runTest = async () => {
     setLoading(true);
     const token = await getToken();
-    // Teste dos últimos 7 dias
     const today = new Date();
     const lastWeek = new Date(today); lastWeek.setDate(today.getDate() - 7);
     
@@ -104,139 +126,452 @@ export default function Wizard() {
   // Effects based on step
   useEffect(() => {
     if (step === 2) loadBusinesses();
-    if (step === 3) loadAdAccounts(selectedBusiness); // Load accounts immediately if no business selected, or wait
+    if (step === 3) loadAdAccounts(selectedBusiness);
   }, [step]);
 
-  // Render Helpers
-  const StepIcon = ({ s, label }: { s: number, label: string }) => {
-    const active = step === s;
-    const done = step > s;
-    return (
-        <div className="flex flex-col items-center gap-2 relative z-10">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${active ? 'border-primary bg-surface text-primary' : done ? 'border-primary bg-primary text-white' : 'border-gray-700 bg-surface text-gray-700'}`}>
-                {done ? <CircleCheck size={20} /> : <span className="font-bold">{s}</span>}
-            </div>
-            <span className={`text-xs font-medium ${active || done ? 'text-white' : 'text-gray-600'}`}>{label}</span>
-        </div>
-    )
-  };
+  // Filters
+  const filteredBusinesses = businesses.filter(b => 
+    b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    b.id.includes(searchTerm)
+  );
+
+  const filteredAdAccounts = adAccounts.filter(acc => 
+    acc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    acc.id.includes(searchTerm)
+  );
+
+  const selectedAccountData = adAccounts.find(a => a.id === selectedAccount);
+
+  // Helper for Stepper
+  const steps = [
+      { id: 1, label: 'Conexão' },
+      { id: 2, label: 'Negócio' },
+      { id: 3, label: 'Conta' },
+      { id: 4, label: 'Insights' },
+      { id: 5, label: 'Conclusão' }
+  ];
 
   return (
-    <div className="max-w-4xl mx-auto">
-        {/* Stepper */}
-        <div className="relative flex justify-between mb-12 px-10">
-            <div className="absolute top-5 left-0 w-full h-0.5 bg-gray-800 -z-0"></div>
-            <div className="absolute top-5 left-0 h-0.5 bg-primary -z-0 transition-all duration-500" style={{ width: `${((step - 1) / 4) * 100}%` }}></div>
-            <StepIcon s={1} label="Conectar" />
-            <StepIcon s={2} label="Business" />
-            <StepIcon s={3} label="Conta" />
-            <StepIcon s={4} label="Teste" />
-            <StepIcon s={5} label="Conclusão" />
-        </div>
+    <div className="max-w-[960px] mx-auto flex flex-col gap-8">
+        
+        {/* Global Node Stepper */}
+        <div className="w-full py-4">
+            <div className="relative flex items-center justify-between w-full px-4">
+                {/* Connecting Lines */}
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-slate-200 dark:bg-[#1a2332] -z-10"></div>
+                <div 
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary -z-10 transition-all duration-500"
+                    style={{ width: `${((step - 1) / 4) * 100}%` }}
+                ></div>
 
-        {/* Content */}
-        <div className="bg-surface border border-border rounded-2xl p-8 min-h-[400px]">
-            {loading && <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center rounded-2xl"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>}
-
-            {step === 1 && (
-                <div className="text-center py-10">
-                    <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-10 h-10 text-primary" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 5.0 3.66 9.12 8.44 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.5-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.77l-.44 2.89h-2.33v6.99C18.34 21.12 22 17 22 12c0-5.52-4.48-10-10-10z"/></svg>
-                    </div>
-                    <h2 className="text-2xl font-bold mb-4">Conecte sua conta Meta</h2>
-                    <p className="text-gray-400 mb-8 max-w-md mx-auto">Precisamos de permissão para ler suas campanhas e insights. Seus dados são criptografados com segurança nível militar.</p>
-                    <button onClick={connectMeta} className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold py-3 px-8 rounded-lg transition transform hover:scale-105">
-                        Continuar com Facebook
-                    </button>
-                </div>
-            )}
-
-            {step === 2 && (
-                <div>
-                    <h2 className="text-xl font-bold mb-4">Selecione o Business Manager (Opcional)</h2>
-                    <div className="grid grid-cols-1 gap-3 mb-6">
-                        {businesses.map(biz => (
-                            <div key={biz.id} onClick={() => setSelectedBusiness(biz.id)} 
-                                className={`p-4 rounded-lg border cursor-pointer flex items-center justify-between ${selectedBusiness === biz.id ? 'border-primary bg-primary/10' : 'border-border hover:border-gray-500'}`}>
-                                <span className="font-medium">{biz.name}</span>
-                                <span className="text-xs text-gray-500">ID: {biz.id}</span>
+                {steps.map((s) => {
+                    const isActive = s.id === step;
+                    const isCompleted = s.id < step;
+                    return (
+                        <div key={s.id} className="flex flex-col items-center gap-2 bg-background-light dark:bg-background-dark px-2">
+                            <div 
+                                className={`size-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all 
+                                ${isCompleted ? 'bg-primary border-primary text-white' : 
+                                  isActive ? 'bg-background-dark border-primary text-primary shadow-[0_0_0_4px_rgba(23,84,207,0.2)]' : 
+                                  'bg-surface-light dark:bg-[#1a2332] border-slate-300 dark:border-[#2a364d] text-slate-500'}`}
+                            >
+                                {isCompleted ? <Check size={16} /> : s.id}
                             </div>
-                        ))}
-                    </div>
-                    <div className="flex justify-end gap-3">
-                         <button onClick={() => { setSelectedBusiness(''); navigate(`/w/${workspaceId}/setup?step=3`); }} className="text-gray-400 hover:text-white px-4">Pular</button>
-                         <button onClick={() => { loadAdAccounts(selectedBusiness); navigate(`/w/${workspaceId}/setup?step=3`); }} disabled={!selectedBusiness} className="bg-primary px-6 py-2 rounded-lg text-white disabled:opacity-50">Próximo</button>
-                    </div>
-                </div>
-            )}
-
-            {step === 3 && (
-                <div>
-                    <h2 className="text-xl font-bold mb-4">Selecione a Conta de Anúncios</h2>
-                    <div className="grid grid-cols-1 gap-3 mb-6 max-h-[300px] overflow-y-auto">
-                        {adAccounts.map(acc => (
-                            <div key={acc.id} onClick={() => setSelectedAccount(acc.id)} 
-                                className={`p-4 rounded-lg border cursor-pointer flex flex-col ${selectedAccount === acc.id ? 'border-primary bg-primary/10' : 'border-border hover:border-gray-500'}`}>
-                                <span className="font-medium">{acc.name}</span>
-                                <div className="flex gap-4 text-xs text-gray-400 mt-1">
-                                    <span>ID: {acc.id}</span>
-                                    <span>{acc.currency}</span>
-                                    <span>{acc.timezone_name}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="flex justify-end">
-                         <button onClick={saveSelection} disabled={!selectedAccount} className="bg-primary px-6 py-2 rounded-lg text-white disabled:opacity-50">Confirmar Seleção</button>
-                    </div>
-                </div>
-            )}
-
-            {step === 4 && (
-                <div className="text-center">
-                    <h2 className="text-xl font-bold mb-6">Teste de Conexão</h2>
-                    {!insights ? (
-                        <button onClick={runTest} className="bg-secondary hover:bg-indigo-600 text-white px-8 py-3 rounded-lg flex items-center gap-2 mx-auto">
-                            <ChartBar /> Rodar Diagnóstico
-                        </button>
-                    ) : (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="bg-green-500/10 border border-green-500/30 p-4 rounded-lg mb-6 inline-flex items-center gap-2 text-green-400">
-                                <CircleCheck size={20} /> Sucesso! Recuperamos {insights.length} dias de dados.
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 mb-8 text-left">
-                                <div className="bg-background p-4 rounded border border-border">
-                                    <p className="text-gray-500 text-xs uppercase">Spend</p>
-                                    <p className="text-xl font-bold text-white">{insights[0]?.spend || 0}</p>
-                                </div>
-                                <div className="bg-background p-4 rounded border border-border">
-                                    <p className="text-gray-500 text-xs uppercase">Impressions</p>
-                                    <p className="text-xl font-bold text-white">{insights[0]?.impressions || 0}</p>
-                                </div>
-                                <div className="bg-background p-4 rounded border border-border">
-                                    <p className="text-gray-500 text-xs uppercase">Clicks</p>
-                                    <p className="text-xl font-bold text-white">{insights[0]?.clicks || 0}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => navigate(`/w/${workspaceId}/setup?step=5`)} className="bg-primary px-8 py-2 rounded-lg text-white">Finalizar</button>
+                            <span className={`text-xs font-medium hidden sm:block ${isActive || isCompleted ? 'text-primary' : 'text-slate-500'}`}>
+                                {s.label}
+                            </span>
                         </div>
-                    )}
-                </div>
-            )}
-
-            {step === 5 && (
-                <div className="text-center py-10">
-                    <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CircleCheck className="w-10 h-10 text-green-500" />
-                    </div>
-                    <h2 className="text-3xl font-bold mb-4">Tudo pronto!</h2>
-                    <p className="text-gray-400 mb-8">O Andromeda Lab está sincronizado com sua conta.</p>
-                    <button onClick={() => navigate(`/w/${workspaceId}/dashboard`)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-lg flex items-center gap-2 mx-auto">
-                        Ir para Dashboard <ArrowRight size={18} />
-                    </button>
-                </div>
-            )}
+                    )
+                })}
+            </div>
         </div>
+
+        {/* Dynamic Content Area (No Card Wrapper on Step 5 for Layout flexibility) */}
+        {step !== 5 ? (
+            <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-xl shadow-xl flex flex-col relative min-h-[400px]">
+                {loading && (
+                    <div className="absolute inset-0 bg-white/50 dark:bg-black/50 z-20 flex items-center justify-center rounded-xl backdrop-blur-sm">
+                        <Loader2 className="animate-spin text-primary w-10 h-10" />
+                    </div>
+                )}
+
+                {step === 1 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-center p-8">
+                        <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
+                            <Facebook className="w-10 h-10 text-primary" />
+                        </div>
+                        <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">Conectar Conta Meta</h2>
+                        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md">
+                            Precisamos de permissão para ler suas campanhas e insights. Seus dados são criptografados com segurança.
+                        </p>
+                        <button onClick={connectMeta} className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold py-3 px-8 rounded-lg transition transform hover:scale-105 flex items-center gap-2">
+                            Continuar com Facebook
+                        </button>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <div className="p-6 sm:p-10 flex flex-col gap-8">
+                        <div className="flex flex-col gap-2">
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                                Selecione uma conta Meta Business
+                            </h1>
+                            <p className="text-slate-500 dark:text-gray-400 text-base leading-relaxed max-w-2xl">
+                                Escolha o Gerenciador de Negócios que deseja associar a este workspace. Isso conecta suas contas de anúncios e pixels.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="relative flex-1">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                    <Search size={20} />
+                                </div>
+                                <input 
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 dark:border-border rounded-lg bg-slate-50 dark:bg-[#111722] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
+                                    placeholder="Buscar negócios por nome ou ID"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3 min-h-[300px]">
+                            {filteredBusinesses.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center text-gray-500">
+                                    <Search size={32} className="mb-2 opacity-50" />
+                                    <p>Nenhum negócio encontrado.</p>
+                                </div>
+                            ) : (
+                                filteredBusinesses.map(biz => {
+                                    const isSelected = selectedBusiness === biz.id;
+                                    return (
+                                        <label 
+                                            key={biz.id}
+                                            onClick={() => setSelectedBusiness(biz.id)}
+                                            className={`group relative flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${isSelected ? 'border-primary bg-primary/5' : 'border-slate-200 dark:border-border bg-white dark:bg-[#111722] hover:border-primary/50'}`}
+                                        >
+                                            <div className="mt-1">
+                                                <div className={`h-5 w-5 rounded-full border-2 relative flex items-center justify-center transition-all ${isSelected ? 'border-primary bg-primary' : 'border-slate-300 dark:border-slate-500'}`}>
+                                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white"></div>}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="text-slate-900 dark:text-white font-semibold truncate">{biz.name}</p>
+                                                    {isSelected && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Selecionado</span>}
+                                                </div>
+                                                <p className="text-slate-500 dark:text-gray-400 text-sm mt-0.5">ID: {biz.id}</p>
+                                            </div>
+                                        </label>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-4 border-t border-slate-200 dark:border-border gap-4">
+                            <button 
+                                onClick={() => navigate(`/w/${workspaceId}/setup?step=1`)}
+                                className="w-full sm:w-auto px-6 py-2.5 rounded-lg text-slate-600 dark:text-gray-300 font-medium hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#111722] transition-colors flex items-center justify-center gap-2"
+                            >
+                                <ArrowLeft size={18} /> Voltar
+                            </button>
+                            <div className="flex flex-col-reverse sm:flex-row items-center gap-3 w-full sm:w-auto">
+                                <button 
+                                    onClick={() => navigate(`/w/${workspaceId}/setup?step=3`)}
+                                    className="w-full sm:w-auto px-6 py-2.5 rounded-lg text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white font-medium transition-colors text-sm"
+                                >
+                                    Pular por enquanto
+                                </button>
+                                <button 
+                                    onClick={() => { loadAdAccounts(selectedBusiness); navigate(`/w/${workspaceId}/setup?step=3`); }}
+                                    disabled={!selectedBusiness}
+                                    className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Selecionar e Continuar <ArrowRight size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {step === 3 && (
+                    <div className="p-6 sm:p-10 flex flex-col gap-6">
+                        <div className="flex flex-col gap-2 mb-2">
+                            <h1 className="text-2xl md:text-[32px] font-bold leading-tight text-slate-900 dark:text-white">Vincular Conta de Anúncios</h1>
+                            <p className="text-slate-500 dark:text-gray-400 text-base font-normal leading-normal">
+                                Selecione a conta de anúncios do Meta que você deseja gerenciar neste workspace.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-2 mb-4">
+                            <label className="text-sm font-medium text-slate-700 dark:text-white">Buscar Conta</label>
+                            <div className="relative flex items-center">
+                                <div className="absolute left-4 text-gray-400">
+                                    <Search size={20} />
+                                </div>
+                                <input 
+                                    className="w-full h-12 pl-12 pr-4 bg-gray-50 dark:bg-[#111722] border border-gray-200 dark:border-border rounded-lg text-slate-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-primary focus:border-primary transition-all outline-none" 
+                                    placeholder="Buscar por nome ou ID da conta (ex: 882910...)" 
+                                    type="text" 
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1 mb-2">
+                            {filteredAdAccounts.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500">
+                                    Nenhuma conta de anúncios encontrada.
+                                </div>
+                            ) : (
+                                filteredAdAccounts.map(acc => {
+                                     const isSelected = selectedAccount === acc.id;
+                                     return (
+                                        <label key={acc.id} onClick={() => setSelectedAccount(acc.id)} className={`group relative flex items-center gap-4 rounded-lg border p-4 cursor-pointer transition-all ${isSelected ? 'border-2 border-primary bg-primary/5' : 'border-gray-200 dark:border-border bg-gray-50 dark:bg-[#111722] hover:bg-gray-100 dark:hover:bg-[#1a2232]'}`}>
+                                            <div className="flex h-5 w-5 items-center justify-center">
+                                                <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-primary bg-primary' : 'border-gray-400 dark:border-gray-600'}`}>
+                                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white"></div>}
+                                                </div>
+                                            </div>
+                                            <div className="flex grow flex-col gap-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-slate-900 dark:text-white text-base font-bold leading-normal">{acc.name}</p>
+                                                    <span className="inline-flex items-center rounded-md bg-green-500/10 px-2 py-1 text-xs font-medium text-green-500 ring-1 ring-inset ring-green-500/20">Ativa</span>
+                                                </div>
+                                                <p className="text-gray-500 dark:text-gray-400 text-sm font-normal font-mono">ID: {acc.id}</p>
+                                            </div>
+                                        </label>
+                                     );
+                                })
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-border mt-auto">
+                             <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Moeda da Conta</label>
+                                <div className="relative">
+                                    <div className="w-full h-12 pl-4 pr-10 flex items-center bg-gray-100 dark:bg-[#111722] border border-gray-200 dark:border-border rounded-lg text-slate-500 dark:text-gray-400 font-mono text-sm">
+                                        {selectedAccountData ? selectedAccountData.currency : 'Selecione uma conta'}
+                                    </div>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                        <Lock size={16} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Fuso Horário</label>
+                                <div className="relative">
+                                    <div className="w-full h-12 pl-4 pr-10 flex items-center bg-gray-100 dark:bg-[#111722] border border-gray-200 dark:border-border rounded-lg text-slate-500 dark:text-gray-400 font-mono text-sm">
+                                        {selectedAccountData ? selectedAccountData.timezone_name : 'Selecione uma conta'}
+                                    </div>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                        <Lock size={16} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-6">
+                            <button onClick={() => navigate(`/w/${workspaceId}/setup?step=2`)} className="px-6 py-3 rounded-lg text-slate-700 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-[#1a2232] transition-colors flex items-center gap-2">
+                                 <ArrowLeft size={20} /> Voltar
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <button onClick={saveSelection} disabled={!selectedAccount} className="px-8 py-3 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-50">
+                                    Continuar <ArrowRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {step === 4 && (
+                    <>
+                        {/* Header */}
+                        <div className="p-6 md:p-8 border-b border-gray-100 dark:border-border flex flex-col md:flex-row md:items-start justify-between gap-4">
+                            <div className="max-w-xl">
+                                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 text-gray-900 dark:text-white">Teste de Integração</h2>
+                                <p className="text-gray-500 dark:text-gray-400 text-base">
+                                    Vamos verificar se conseguimos extrair métricas da sua conta Meta Ads. Clique no botão abaixo para buscar uma amostra de dados reais.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                </span>
+                                <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Ready to Test</span>
+                            </div>
+                        </div>
+
+                        {/* Action Area */}
+                        <div className="p-6 md:p-8 bg-gray-50/50 dark:bg-[#0B0E14]/30 flex flex-col items-center justify-center gap-6 flex-1">
+                            {!insights ? (
+                                <button 
+                                    onClick={runTest} 
+                                    className="group relative flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold py-3.5 px-8 rounded-lg transition-all duration-200 shadow-lg shadow-blue-900/20 active:scale-[0.98]"
+                                >
+                                    <Zap className="group-hover:animate-pulse" />
+                                    <span>Testar Insights Agora</span>
+                                </button>
+                            ) : (
+                                <div className="w-full animate-fade-in-up">
+                                    {/* Success Banner */}
+                                    <div className="rounded-lg border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 p-4 mb-6 flex items-start gap-4">
+                                        <div className="bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 p-2 rounded-full shrink-0">
+                                            <CheckCircle2 size={24} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-green-800 dark:text-green-300 mb-1">Conexão Estabelecida com Sucesso!</h4>
+                                            <p className="text-sm text-green-700 dark:text-green-400/80">
+                                                Conseguimos conectar com a conta e recuperamos os dados dos últimos 7 dias.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Metrics Grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="p-4 rounded-lg bg-white dark:bg-background-dark border border-gray-100 dark:border-border shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Eye className="text-slate-400" size={16} />
+                                                <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Impressões</span>
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                                                    {new Intl.NumberFormat('pt-BR', { notation: "compact" }).format(insights[0]?.impressions || 0)}
+                                                </span>
+                                                <span className="text-xs text-green-500 font-medium mb-1 flex items-center">
+                                                    <TrendingUp size={14} className="mr-0.5" /> +12%
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="p-4 rounded-lg bg-white dark:bg-background-dark border border-gray-100 dark:border-border shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <MousePointerClick className="text-slate-400" size={16} />
+                                                <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Cliques</span>
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                                                    {new Intl.NumberFormat('pt-BR').format(insights[0]?.clicks || 0)}
+                                                </span>
+                                                <span className="text-xs text-green-500 font-medium mb-1 flex items-center">
+                                                     <TrendingUp size={14} className="mr-0.5" /> +5%
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 rounded-lg bg-white dark:bg-background-dark border border-gray-100 dark:border-border shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <DollarSign className="text-slate-400" size={16} />
+                                                <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Gasto</span>
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(insights[0]?.spend || 0)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="mt-4 flex justify-center">
+                                        <button 
+                                            onClick={runTest}
+                                            className="text-xs text-slate-500 hover:text-white underline underline-offset-2 flex items-center gap-1 transition-colors"
+                                        >
+                                            <RefreshCcw size={14} /> Testar novamente
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 md:p-8 border-t border-gray-100 dark:border-border flex items-center justify-between">
+                            <button 
+                                onClick={() => navigate(`/w/${workspaceId}/setup?step=3`)} 
+                                className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+                            >
+                                <ArrowLeft size={16} /> Voltar
+                            </button>
+                            <button 
+                                onClick={() => navigate(`/w/${workspaceId}/setup?step=5`)}
+                                disabled={!insights}
+                                className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-semibold text-sm shadow-lg shadow-blue-900/30 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Continuar <ArrowRight size={16} />
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        ) : (
+            // Step 5 Special Layout
+            <div className="w-full max-w-2xl bg-white dark:bg-[#1a202c] rounded-2xl border border-slate-200 dark:border-gray-800 shadow-xl overflow-hidden mx-auto animate-fade-in-up">
+                {/* Hero */}
+                <div className="flex flex-col items-center pt-12 pb-8 px-8 text-center bg-gradient-to-b from-primary/5 to-transparent">
+                    <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 relative shadow-[0_0_40px_-10px_rgba(23,84,207,0.5)]">
+                        <Rocket className="text-primary animate-pulse" size={40} />
+                        <div className="absolute -top-1 -right-2 text-yellow-400 animate-bounce delay-75">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                        </div>
+                    </div>
+                    <h1 className="text-slate-900 dark:text-white tracking-tight text-3xl sm:text-4xl font-extrabold leading-tight mb-3">
+                        Sistemas prontos!
+                    </h1>
+                    <p className="text-slate-600 dark:text-gray-400 text-lg font-medium max-w-lg mx-auto leading-relaxed">
+                        Seu workspace foi inicializado com sucesso. Conectamos sua conta Meta Ads e configuramos as permissões.
+                    </p>
+                </div>
+
+                {/* Summary */}
+                <div className="px-8 pb-8">
+                    <div className="bg-slate-50 dark:bg-[#111722] rounded-xl border border-slate-200 dark:border-gray-700 p-6">
+                        <h3 className="text-sm uppercase tracking-wider text-slate-500 dark:text-gray-400 font-semibold mb-4 flex items-center gap-2">
+                            <ReceiptText size={18} /> Resumo da Configuração
+                        </h3>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 items-center pb-4 border-b border-slate-200 dark:border-gray-800 last:border-0 last:pb-0">
+                                <p className="text-slate-500 dark:text-gray-400 text-sm font-medium">Conta de Anúncios</p>
+                                <div className="flex items-center gap-2">
+                                    <BadgeCheck size={18} className="text-blue-500" />
+                                    <p className="text-slate-900 dark:text-white text-base font-semibold">
+                                        {selectedAccountData ? selectedAccountData.name : selectedAccount || 'Conta Principal'} 
+                                        <span className="text-slate-400 font-normal ml-1">
+                                            (ID: {selectedAccountData ? selectedAccountData.id : selectedAccount || '...'})
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 items-center pb-4 border-b border-slate-200 dark:border-gray-800 last:border-0 last:pb-0">
+                                <p className="text-slate-500 dark:text-gray-400 text-sm font-medium">Função Atribuída</p>
+                                <div className="flex items-start">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                        Admin
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 items-center">
+                                <p className="text-slate-500 dark:text-gray-400 text-sm font-medium">Status</p>
+                                <p className="text-slate-900 dark:text-white text-base font-medium">Sincronização Ativa</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-8 flex flex-col items-center gap-4">
+                            <button onClick={() => navigate(`/w/${workspaceId}/dashboard`)} className="group relative w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-3 bg-primary hover:bg-blue-600 text-white font-bold py-3.5 px-8 rounded-lg shadow-lg shadow-blue-500/20 transition-all duration-200 transform hover:-translate-y-0.5">
+                            <span>Ir para Dashboard</span>
+                            <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" size={20} />
+                        </button>
+                        <button onClick={() => setStep(3)} className="text-sm text-slate-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-1 mt-2">
+                            <Settings size={16} /> Revisar configurações
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 }

@@ -27,8 +27,20 @@ export default function WorkspacesList() {
     try {
       const token = await getToken();
       const res = await fetch('/api/workspaces', { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Falha ao carregar workspaces');
-      const data = await res.json();
+      
+      // Tenta fazer parse do JSON, mas trata caso venha HTML/Texto (Erro 500 do Vercel)
+      const contentType = res.headers.get('content-type');
+      let data;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        // Se não for JSON, provavelmente é um erro de infra
+        if (!res.ok) throw new Error(`Erro do servidor (${res.status}): Verifique conexão Redis/ENVs`);
+        data = [];
+      }
+
+      if (!res.ok) throw new Error(data.message || 'Falha ao carregar workspaces');
+      
       setWorkspaces(data);
     } catch (e) {
       console.error(e);
@@ -48,7 +60,16 @@ export default function WorkspacesList() {
         body: JSON.stringify({ name: newName })
       });
       
-      const data = await res.json();
+      // Tratamento robusto de resposta
+      const contentType = res.headers.get('content-type');
+      let data;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(`Erro Fatal Backend (${res.status}): ${text.slice(0, 100)}...`);
+      }
       
       if (!res.ok) {
         throw new Error(data.message || data.error || 'Erro desconhecido ao criar workspace');
@@ -78,7 +99,13 @@ export default function WorkspacesList() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const data = await res.json();
+      let data;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        throw new Error('Erro de servidor ao excluir.');
+      }
       
       if (!res.ok) {
         // Exibe o erro vindo da API (ex: Proteção do Master User)
@@ -88,8 +115,8 @@ export default function WorkspacesList() {
 
       // Atualiza lista local
       setWorkspaces(prev => prev.filter(w => w.id !== id));
-    } catch (err) {
-      alert('Erro de conexão ao tentar excluir.');
+    } catch (err: any) {
+      alert(err.message || 'Erro de conexão ao tentar excluir.');
     }
   };
 
