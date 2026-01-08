@@ -7,14 +7,14 @@ export default async function handler(req: any, res: any) {
     // Debug Logs para Vercel
     console.log('[DEBUG] Handler Started');
     
-    // Verifica ENVs de forma segura
+    // Verifica ENVs de forma segura (Agora verificando POSTGRES_URL)
     const hasSecret = !!process.env.SESSION_SECRET;
-    const hasRedis = !!(process.env.d_andromeda_labandromeda_lab_REDIS_URL || process.env.REDIS_URL || process.env.KV_URL);
+    const hasDb = !!(process.env.POSTGRES_URL || process.env.NILEDB_URL);
     
-    console.log(`[DEBUG] Config Check - Secret: ${hasSecret}, Redis: ${hasRedis}`);
+    console.log(`[DEBUG] Config Check - Secret: ${hasSecret}, DB: ${hasDb}`);
 
-    if (!hasSecret || !hasRedis) {
-      return sendError(res, 500, 'server_configuration_error', 'Faltam variáveis de ambiente (SESSION_SECRET ou REDIS_URL).');
+    if (!hasSecret || !hasDb) {
+      return sendError(res, 500, 'server_configuration_error', 'Faltam variáveis de ambiente (SESSION_SECRET ou POSTGRES_URL).');
     }
 
     const user = await getUser(req);
