@@ -6,13 +6,11 @@ import {
   ArrowRight, 
   Loader2, 
   Search, 
-  Filter, 
   Check, 
   Zap, 
   CheckCircle2,
   Facebook,
   Lock,
-  Info,
   Eye,
   MousePointerClick,
   DollarSign,
@@ -21,7 +19,9 @@ import {
   Rocket,
   ReceiptText,
   BadgeCheck,
-  Settings
+  Settings,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { MetaBusiness, MetaAdAccount, MetaInsight } from '../shared/types';
 
@@ -34,6 +34,7 @@ export default function Wizard() {
   // Step State (1-5)
   const [step, setStep] = useState(parseInt(searchParams.get('step') || '1'));
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Data State
   const [businesses, setBusinesses] = useState<MetaBusiness[]>([]);
@@ -50,77 +51,133 @@ export default function Wizard() {
     const urlStep = parseInt(searchParams.get('step') || '1');
     setStep(urlStep);
     setSearchTerm('');
+    setError(null); // Clear errors on step change
   }, [searchParams]);
 
   // Actions
   const connectMeta = async () => {
     setLoading(true);
+    setError(null);
     try {
         const token = await getToken();
         const res = await fetch(`/api/auth/meta/start?workspaceId=${workspaceId}`, { 
             headers: { Authorization: `Bearer ${token}` } 
         });
         const data = await res.json();
-        if (data.url) window.location.href = data.url; // Redirect to Meta
-    } catch (e) {
-        alert('Erro ao iniciar conexão');
+        if (data.url) {
+            window.location.href = data.url; 
+        } else {
+            throw new Error(data.message || 'Falha ao obter URL de autenticação');
+        }
+    } catch (e: any) {
+        setError(e.message || 'Erro ao iniciar conexão');
+        setLoading(false);
     }
   };
 
   const loadBusinesses = async () => {
     setLoading(true);
-    const token = await getToken();
-    const res = await fetch(`/api/w/meta/rpc?action=businesses&workspaceId=${workspaceId}`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    setBusinesses(data.data || []);
-    setLoading(false);
+    setError(null);
+    try {
+        const token = await getToken();
+        const res = await fetch(`/api/w/meta/rpc?action=businesses&workspaceId=${workspaceId}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Erro ao carregar negócios');
+        setBusinesses(data.data || []);
+    } catch (e: any) {
+        setError(e.message);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const loadAdAccounts = async (bizId?: string) => {
     setLoading(true);
-    const token = await getToken();
-    const url = `/api/w/meta/rpc?action=adaccounts&workspaceId=${workspaceId}${bizId ? `&businessId=${bizId}` : ''}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    setAdAccounts(data.data || []);
-    setLoading(false);
+    setError(null);
+    try {
+        const token = await getToken();
+        const url = `/api/w/meta/rpc?action=adaccounts&workspaceId=${workspaceId}${bizId ? `&businessId=${bizId}` : ''}`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Erro ao carregar contas de anúncio');
+        setAdAccounts(data.data || []);
+    } catch (e: any) {
+        setError(e.message);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const saveSelection = async () => {
     if(!selectedAccount) return;
     setLoading(true);
-    const account = adAccounts.find(a => a.id === selectedAccount);
-    const token = await getToken();
-    
-    await fetch(`/api/w/meta/rpc?action=select&workspaceId=${workspaceId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            businessId: selectedBusiness,
-            adAccountId: selectedAccount,
-            currency: account?.currency,
-            timezone: account?.timezone_name
-        })
-    });
-    setLoading(false);
-    navigate(`/w/${workspaceId}/setup?step=4`);
+    setError(null);
+    try {
+        const account = adAccounts.find(a => a.id === selectedAccount);
+        const token = await getToken();
+        
+        const res = await fetch(`/api/w/meta/rpc?action=select&workspaceId=${workspaceId}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                businessId: selectedBusiness,
+                adAccountId: selectedAccount,
+                currency: account?.currency,
+                timezone: account?.timezone_name
+            })
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message || 'Erro ao salvar seleção');
+        }
+
+        navigate(`/w/${workspaceId}/setup?step=4`);
+    } catch (e: any) {
+        setError(e.message);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const runTest = async () => {
     setLoading(true);
-    const token = await getToken();
-    const today = new Date();
-    const lastWeek = new Date(today); lastWeek.setDate(today.getDate() - 7);
-    
-    const since = lastWeek.toISOString().split('T')[0];
-    const until = today.toISOString().split('T')[0];
-    
-    const res = await fetch(`/api/w/meta/rpc?action=insights&workspaceId=${workspaceId}&adAccountId=${selectedAccount}&since=${since}&until=${until}`, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    setInsights(data.data || []);
-    setLoading(false);
+    setError(null); // Limpa erros anteriores
+    setInsights(null); // Reseta insights
+    try {
+        const token = await getToken();
+        const today = new Date();
+        const lastWeek = new Date(today); lastWeek.setDate(today.getDate() - 7);
+        
+        const since = lastWeek.toISOString().split('T')[0];
+        const until = today.toISOString().split('T')[0];
+        
+        const res = await fetch(`/api/w/meta/rpc?action=insights&workspaceId=${workspaceId}&adAccountId=${selectedAccount}&since=${since}&until=${until}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Tratamento robusto de resposta não-JSON (ex: erro de infraestrutura)
+        const contentType = res.headers.get('content-type');
+        let data;
+        if (contentType && contentType.includes('application/json')) {
+            data = await res.json();
+        } else {
+            const text = await res.text();
+            throw new Error(`Erro do Servidor (${res.status}): ${text.slice(0, 100)}`);
+        }
+
+        if (!res.ok) {
+            // Usa a mensagem específica retornada pela API do Meta via Backend
+            throw new Error(data.message || data.error || 'Falha na comunicação com a API do Meta');
+        }
+        
+        setInsights(data.data || []);
+    } catch (e: any) {
+        // Exibe a mensagem de erro específica para o usuário
+        setError(e.message || 'Erro desconhecido ao testar insights.');
+    } finally {
+        setLoading(false);
+    }
   };
 
   // Effects based on step
@@ -192,6 +249,22 @@ export default function Wizard() {
                 {loading && (
                     <div className="absolute inset-0 bg-white/50 dark:bg-black/50 z-20 flex items-center justify-center rounded-xl backdrop-blur-sm">
                         <Loader2 className="animate-spin text-primary w-10 h-10" />
+                    </div>
+                )}
+                
+                {/* Global Error Banner inside Card */}
+                {error && (
+                    <div className="absolute top-0 left-0 w-full p-4 z-10">
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                            <AlertTriangle className="text-red-600 dark:text-red-400 shrink-0" size={20} />
+                            <div className="flex-1">
+                                <h4 className="text-sm font-bold text-red-900 dark:text-red-300">Erro na operação</h4>
+                                <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
+                            </div>
+                            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                <XCircle size={20} />
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -406,7 +479,24 @@ export default function Wizard() {
                         </div>
 
                         {/* Action Area */}
-                        <div className="p-6 md:p-8 bg-gray-50/50 dark:bg-[#0B0E14]/30 flex flex-col items-center justify-center gap-6 flex-1">
+                        <div className="p-6 md:p-8 bg-gray-50/50 dark:bg-[#0B0E14]/30 flex flex-col items-center justify-center gap-6 flex-1 relative">
+                            {/* Specific error display for step 4 */}
+                            {error && (
+                                <div className="w-full max-w-2xl mb-6 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30 p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                                    <XCircle className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
+                                    <div>
+                                        <h4 className="text-sm font-bold text-red-900 dark:text-red-300">Falha na conexão com Meta API</h4>
+                                        <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
+                                        <button 
+                                            onClick={() => setError(null)}
+                                            className="text-xs font-medium text-red-600 dark:text-red-400 underline mt-2 hover:text-red-800"
+                                        >
+                                            Dispensar erro
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {!insights ? (
                                 <button 
                                     onClick={runTest} 
