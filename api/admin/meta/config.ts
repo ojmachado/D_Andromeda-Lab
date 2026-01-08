@@ -4,6 +4,11 @@ import { encrypt } from '../../_lib/crypto';
 
 export default async function handler(req: any, res: any) {
   try {
+    // Pré-verificação de sanidade do ambiente
+    if (!process.env.SESSION_SECRET || !process.env.d_andromeda_labandromeda_lab_REDIS_URL) {
+      return sendError(res, 500, 'server_configuration_error', 'Faltam variáveis de ambiente (SESSION_SECRET ou d_andromeda_labandromeda_lab_REDIS_URL) no painel da Vercel.');
+    }
+
     const user = await getUser(req);
     if (!user) return sendError(res, 401, 'unauthorized', 'Login requerido');
 
@@ -64,6 +69,10 @@ export default async function handler(req: any, res: any) {
     return sendError(res, 405, 'method_not_allowed', 'Method not allowed');
   } catch (e: any) {
     console.error('Config API Error:', e);
+    // Se for erro de config do servidor, retornamos amigavelmente
+    if (e.message.includes('SESSION_SECRET') || e.message.includes('d_andromeda_labandromeda_lab_REDIS_URL')) {
+        return sendError(res, 500, 'config_error', e.message);
+    }
     return sendError(res, 500, 'server_error', e.message);
   }
 }
