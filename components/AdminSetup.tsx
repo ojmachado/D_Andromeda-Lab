@@ -70,12 +70,18 @@ export default function AdminSetup() {
             body: JSON.stringify({ appId, appSecret, webhookUrl })
         });
 
-        if (!res.ok) throw new Error('Falha ao salvar');
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+            throw new Error(data?.message || data?.error || 'Falha ao salvar configurações');
+        }
         
         // Feedback visual simples via logs ou toast poderia ser adicionado aqui
         alert('Configurações salvas com sucesso!');
-    } catch (e) {
-        alert('Erro ao salvar configurações.');
+        // Reload to ensure state is synced if needed
+        initialize();
+    } catch (e: any) {
+        alert(`Erro ao salvar: ${e.message}`);
     } finally {
         setSaving(false);
     }
@@ -395,7 +401,7 @@ export default function AdminSetup() {
                         </p>
                         <button 
                             onClick={handleTest}
-                            disabled={testing || !appId || !appSecret}
+                            disabled={testing || !appId}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold transition-colors
                                 ${testing ? 'bg-slate-200 dark:bg-gray-800 text-slate-500' : 'bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-gray-200 text-white dark:text-slate-900'}
                             `}

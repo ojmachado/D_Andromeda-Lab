@@ -38,7 +38,8 @@ export default async function handler(req: any, res: any) {
 
       const newConfig = {
         appId,
-        webhookUrl: webhookUrl || currentConfig.webhookUrl,
+        // Usa nullish coalescing para permitir salvar string vazia (limpar campo)
+        webhookUrl: webhookUrl !== undefined ? webhookUrl : currentConfig.webhookUrl,
         appSecret: appSecret ? encrypt(appSecret) : currentConfig.appSecret
       };
 
